@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"runtime"
 )
 
@@ -28,4 +29,26 @@ func printAlloc() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	fmt.Printf("%d MB\n", m.Alloc/(1024*1024))
+}
+
+func other() {
+	n := 1_000_000
+	m := make(map[int]Foo)
+
+	for i := range n { // Adds 1 million elements
+		m[i] = Foo{}
+	}
+
+	for i, foo := range m { // Deletes 50% of elements
+		if foo.isExpired() {
+			delete(m, i)
+		}
+	}
+}
+
+type Foo struct{}
+
+func (f Foo) isExpired() bool {
+	flip := rand.Intn(2)
+	return flip == 0
 }

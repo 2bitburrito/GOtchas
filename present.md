@@ -2,6 +2,7 @@
 theme: 
   name: "catppuccin-mocha"
 ---
+<!-- pause -->
 A Few Small
 ---
 <!-- pause -->
@@ -20,6 +21,10 @@ A Few Small
 <!-- alignment: center -->
 I learned from reading this book:
 ![](images/cover2.jpg)
+<!-- speaker_note: Teiva Harsanyi -->
+<!-- end_slide -->
+![image:w:55%](images/meme3.jpg)
+<!-- speaker_note: easy to learn / hard to master -->
 <!-- end_slide -->
 
 <!-- alignment: center -->
@@ -34,7 +39,7 @@ I learned from reading this book:
 
 <!-- pause -->
 <!-- column: 0 -->
-```go {all|1|2|4-6|8|all} +line_numbers
+```go {all|2|4-6|8|all} +line_numbers
 func getBar(foos []Foo) []Bar {
   bars := make([]Bar, 0) 
 
@@ -50,32 +55,31 @@ func getBar(foos []Foo) []Bar {
 <!-- column: 1 -->
 ![](images/go_q.jpg)
 <!-- reset_layout -->
-
 <!-- pause -->
 A slice grows by doubling its backing array until it contains 1,024 elements, after which it grows by 25%.
-
 <!-- pause -->
 So from 0->1024 we get 11 new backing arrays
+<!-- speaker_note: when we exceed the backing array len a new arr is made -->
+<!-- speaker_note: Impacts both performance and memory -->
 <!-- end_slide -->
 
 <!-- alignment: center -->
  Memory and CPU Performance of Slices and Maps
 ---
 
-<!-- 
-speaker_note: |
-  - Not just memory but performance (will get to that shortly)
--->
 
 <!-- alignment: center -->
 So what can we do about this?
 
 ---
-<!-- pause -->
 
 <!-- column_layout: [1, 1] -->
 
+<!-- speaker_note: solutions involve knowing len of new slice-->
+<!-- speaker_note: go test ./1-slice-init -bench=. -->
 <!-- column: 0 -->
+<!-- pause -->
+![](images/array1.png)
 ```go {all|2-3|all} +line_numbers
 func convertGivenCapacity(foos []Foo) []Bar {
 	n := len(foos)
@@ -88,10 +92,9 @@ func convertGivenCapacity(foos []Foo) []Bar {
 }
 ```
 <!-- pause -->
-![](images/array1.png)
-<!-- pause -->
 <!-- column: 1 -->
-```go {all|2-3|all} +line_numbers
+![](images/array2.png)
+```go {all|5-7|all} +line_numbers
 func convertGivenLength(foos []Foo) []Bar {
   n := len(foos)
   bars := make([]Bar, n)
@@ -103,11 +106,8 @@ func convertGivenLength(foos []Foo) []Bar {
 }
 ```
 <!-- pause -->
-![](images/array2.png)
-<!-- pause -->
 <!-- 
 speaker_note: |
-  - Not just memory but performance (show benchmark)
   - Mention Maps
 -->
 
@@ -191,6 +191,7 @@ func main() {
 <!-- pause -->
 <!-- alignment: center -->
 After adding 1 million elements, there are 262,144 buckets.
+<!-- speaker_note: go run ./2-map-deletes -->
 
 <!-- end_slide -->
 <!-- alignment: center -->
@@ -219,6 +220,7 @@ func main() {
 	runtime.KeepAlive(m) // Keeps a reference to m so that the map isn’t collected
 }
 ```
+<!-- speaker_note: go run ./2-map-deletes-pointers -->
 <!-- pause  -->
 It's the same with Slices:
 ```go +line_numbers
@@ -226,64 +228,169 @@ newSlice := someLargeSlice[:10]
 ```
 <!-- pause -->
 <!-- end_slide -->
+
 <!-- alignment: center -->
- Memory Leaks in Strings
+Go Routines
 ---
 <!-- alignment: left -->
-## Iterating Over Strings
+## The cost of concurrency
 
 ---
 <!-- column_layout: [1, 1] -->
-
 <!-- column: 0 -->
-```go +line_numbers 
-func concat(values []string) string {
-	s := ""
-	for _, value := range values {
-		s += value
+```go {all|6-9|all} +line_numbers 
+func sequentialMergesort(s []int) {
+	if len(s) <= 1 {
+		return
 	}
-	return s
+
+	middle := len(s) / 2
+	sequentialMergesort(s[:middle])
+	sequentialMergesort(s[middle:])
+	merge(s, middle)
 }
 ```
+<!-- column: 1 -->
+```go {all|7-18|all} +line_numbers 
+func parallelMergesortV1(s []int) {
+	if len(s) <= 1 {
+		return
+	}
+	middle := len(s) / 2
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		parallelMergesortV1(s[:middle])
+	}()
+
+	go func() {
+		defer wg.Done()
+		parallelMergesortV1(s[middle:])
+	}()
+
+	wg.Wait()
+	merge(s, middle)
+}
+```
+<!-- speaker_note: for 10_000 what is faster? -->
+<!-- speaker_note: go test ./3-concurrency -bench="Benchmark_mergesort" -->
 <!-- pause -->
-<!-- column: 1  -->
-![](images/go_q.jpg)
+
+<!-- column: 0 -->
+![image:w:50%](images/go_q.jpg)
 <!-- end_slide -->
-<!-- reset_layout -->
 <!-- alignment: center -->
- Memory and CPU Performance of Slices and Maps
+Premature Go Routines
 ---
-What can we do?
+<!-- alignment: left -->
+## The cost of concurrency
 
 ---
 <!-- column_layout: [1, 1] -->
+<!-- column: 1 -->
+![image:w:50%](images/routine_meme.jpg)
+<!-- column: 0 -->
+- While extremely lightweight
+<!-- speaker_note: around 2kb per "thread" -->
+- Go Routines aren't free
+<!-- speaker_note: switching context is still expensive -->
+<!-- end_slide -->
+<!-- alignment: center -->
+Premature Go Routines
+---
+<!-- alignment: left -->
+## The cost of concurrency
+---
+
+So is parallelism useless here?
+
+<!-- pause -->
+```go {all|1|8-9|10-28|all} +line_numbers
+const max = 2048 // Defines the threshold
+
+func parallelMergesortV2(s []int) {
+    if len(s) <= 1 {
+        return
+    }
+
+    if len(s) <= max {
+        sequentialMergesort(s) 
+    } else {
+        middle := len(s) / 2
+
+        var wg sync.WaitGroup
+        wg.Add(2)
+
+        go func() {
+            defer wg.Done()
+            parallelMergesortV2(s[:middle])
+        }()
+
+        go func() {
+            defer wg.Done()
+            parallelMergesortV2(s[middle:])
+        }()
+
+        wg.Wait()
+        merge(s, middle)
+    }
+}
+```
+<!-- speaker_note: go test ./3-concurrency -bench=. -->
+<!-- end_slide -->
+<!-- alignment: center -->
+CPU L1 Cache Optimizations
+---
+<!-- alignment: left -->
+## In the weeds now...
+---
+<!-- speaker_note: go test ./4-false-sharing -bench=. -->
+
+<!-- column_layout: [ 1, 1 ] -->
 
 <!-- column: 0 -->
-```go {all|2|all} +line_numbers
-func concat2(values []string) string {
-	sb := strings.Builder{}
-	for _, value := range values {
-		_, _ = sb.WriteString(value)
-	}
-	return sb.String()
+```go +line_numbers
+type Input struct {
+	a int64
+	b int64
+}
+
+type Result1 struct {
+	sumA int64
+	sumB int64
 }
 ```
 <!-- pause -->
 <!-- column: 1 -->
-```go {all|2-6|9|all} +line_numbers
-func concat3(values []string) string {
-	n := len(values)
-	total := 0
-	for i := range n {
-		total += len(values[i])
-	}
+```go +line_numbers
+func count1(inputs []Input) Result1 {
+	wg := sync.WaitGroup{}
+	wg.Add(2)
 
-	sb := strings.Builder{}
-	sb.Grow(total)
-	for _, value := range values {
-		_, _ = sb.WriteString(value)
-	}
-	return sb.String()
+	result := Result1{}
+
+	go func() {
+		for i := range len(inputs) {
+			result.sumA += inputs[i].a
+		}
+		wg.Done()
+	}()
+
+	go func() {
+		for i := range len(inputs) {
+			result.sumB += inputs[i].b
+		}
+		wg.Done()
+	}()
+
+	wg.Wait()
+	return result
 }
 ```
-
+<!-- pause -->
+<!-- column: 0 -->
+![](images/go_q.jpg)
+<!-- end_slide -->

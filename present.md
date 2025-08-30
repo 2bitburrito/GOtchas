@@ -221,12 +221,7 @@ func main() {
 }
 ```
 <!-- speaker_note: go run ./2-map-deletes-pointers -->
-<!-- pause  -->
-It's the same with Slices:
-```go +line_numbers
-newSlice := someLargeSlice[:10] 
-```
-<!-- pause -->
+<!-- speaker_note: also could copy map however this could balloon mem -->
 <!-- end_slide -->
 
 <!-- alignment: center -->
@@ -291,7 +286,7 @@ Premature Go Routines
 ---
 <!-- column_layout: [1, 1] -->
 <!-- column: 1 -->
-![image:w:50%](images/routine_meme.jpg)
+![image:w:80%](images/routine_meme.jpg)
 <!-- column: 0 -->
 - While extremely lightweight
 <!-- speaker_note: around 2kb per "thread" -->
@@ -302,11 +297,13 @@ Premature Go Routines
 Premature Go Routines
 ---
 <!-- alignment: left -->
-## The cost of concurrency
 ---
 
+<!-- column_layout: [1, 1] -->
+<!-- column: 0 -->
 So is parallelism useless here?
 
+<!-- column: 1 -->
 <!-- pause -->
 ```go {all|1|8-9|10-28|all} +line_numbers
 const max = 2048 // Defines the threshold
@@ -347,7 +344,6 @@ CPU L1 Cache Optimizations
 <!-- alignment: left -->
 ## In the weeds now...
 ---
-<!-- speaker_note: go test ./4-false-sharing -bench=. -->
 
 <!-- column_layout: [ 1, 1 ] -->
 
@@ -358,14 +354,14 @@ type Input struct {
 	b int64
 }
 
-type Result1 struct {
+type Result struct {
 	sumA int64
 	sumB int64
 }
 ```
 <!-- pause -->
 <!-- column: 1 -->
-```go +line_numbers
+```go {all|7-19|all} +line_numbers
 func count1(inputs []Input) Result1 {
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -394,3 +390,36 @@ func count1(inputs []Input) Result1 {
 <!-- column: 0 -->
 ![](images/go_q.jpg)
 <!-- end_slide -->
+<!-- alignment: center -->
+CPU L1 Cache Optimizations
+---
+So what's happening here?
+
+![image:w:100%](images/cacheline_1.png)
+<!-- end_slide -->
+<!-- alignment: center -->
+CPU L1 Cache Optimizations
+---
+So what's happening here?
+
+![image:w:100%](images/cacheline_2.png)
+<!-- speaker_note: 7/8 times -->
+<!-- end_slide -->
+<!-- alignment: center -->
+CPU L1 Cache Optimizations
+---
+What can we do? 
+<!-- pause -->
+```go {all|3|all} +line_numbers
+type Result2 struct {
+	sumA int64
+	_    [56]byte
+	sumB int64
+}
+```
+<!-- speaker_note: go test ./4-false-sharing -bench=. -->
+<!-- end_slide -->
+<!-- jump_to_middle -->
+
+Thank You
+---

@@ -21,6 +21,7 @@ A Few Small
 <!-- alignment: center -->
 I learned from reading this book:
 ![](images/cover2.jpg)
+<!-- speaker_note: Intro self -->
 <!-- speaker_note: Teiva Harsanyi -->
 <!-- end_slide -->
 ![image:w:55%](images/meme3.jpg)
@@ -423,3 +424,5 @@ type Result2 struct {
 
 Thank You
 ---
+<!-- speaker_note: read the book -->
+<!-- speaker_note: jobs? -->
